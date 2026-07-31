@@ -2,11 +2,12 @@ const express = require('express');
 const asyncHandler = require('express-async-handler');
 const { ObjectId } = require('mongodb');
 const { safeQueryId } = require('../config/db');
+const { verifyToken, isAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// POST /tutors - Create tutor
-router.post('/', asyncHandler(async (req, res) => {
+// POST /tutors - Create tutor (Admin only)
+router.post('/', verifyToken, isAdmin, asyncHandler(async (req, res) => {
   const tutorsCollection = req.tutorsCollection;
   const tutorData = req.body;
   
@@ -26,7 +27,7 @@ router.post('/', asyncHandler(async (req, res) => {
   res.status(201).json({ message: 'Tutor created', tutor: { ...newTutor, _id: result.insertedId } });
 }));
 
-// GET /tutors - Fetch with filters
+// GET /tutors - Fetch with filters (Public)
 router.get('/', asyncHandler(async (req, res) => {
   const tutorsCollection = req.tutorsCollection;
   const { email, search, startDate, endDate, subject } = req.query;
@@ -59,7 +60,7 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(tutors);
 }));
 
-// GET /tutors/:id - Single tutor
+// GET /tutors/:id - Single tutor (Public)
 router.get('/:id', asyncHandler(async (req, res) => {
   const tutorsCollection = req.tutorsCollection;
   const tutor = await tutorsCollection.findOne(safeQueryId(req.params.id));
@@ -71,8 +72,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
   res.json(tutor);
 }));
 
-// PUT /tutors/:id - Update tutor
-router.put('/:id', asyncHandler(async (req, res) => {
+// PUT /tutors/:id - Update tutor (Admin only)
+router.put('/:id', verifyToken, isAdmin, asyncHandler(async (req, res) => {
   const tutorsCollection = req.tutorsCollection;
   const updateData = { ...req.body, updatedAt: new Date() };
   delete updateData._id;
@@ -90,8 +91,8 @@ router.put('/:id', asyncHandler(async (req, res) => {
   res.json({ message: 'Tutor updated', tutor: updatedTutor });
 }));
 
-// DELETE /tutors/:id - Delete tutor
-router.delete('/:id', asyncHandler(async (req, res) => {
+// DELETE /tutors/:id - Delete tutor (Admin only)
+router.delete('/:id', verifyToken, isAdmin, asyncHandler(async (req, res) => {
   const tutorsCollection = req.tutorsCollection;
   const result = await tutorsCollection.deleteOne(safeQueryId(req.params.id));
   

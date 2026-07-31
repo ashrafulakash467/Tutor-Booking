@@ -4,7 +4,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'tutor-booking-secret-key';
 
 function generateToken(user) {
   return jwt.sign(
-    { email: user.email, name: user.name, photoURL: user.photoURL },
+    { email: user.email, name: user.name, photoURL: user.photoURL, role: user.role },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -25,6 +25,13 @@ function verifyToken(req, res, next) {
   }
 }
 
+function isAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+  next();
+}
+
 function optionalAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -38,4 +45,4 @@ function optionalAuth(req, res, next) {
   next();
 }
 
-module.exports = { generateToken, verifyToken, optionalAuth };
+module.exports = { generateToken, verifyToken, isAdmin, optionalAuth };

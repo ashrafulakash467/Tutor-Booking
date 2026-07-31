@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Star, Users, BookOpen, DollarSign, Globe, GraduationCap, Briefcase, Calendar, ArrowLeft } from 'lucide-react';
+import { Star, Users, BookOpen, DollarSign, Globe, GraduationCap, Briefcase, Calendar, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,8 +7,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { BookSessionModal } from '@/components/BookSessionModal';
 import api from '@/api';
 
-export default function TutorDetails({ navigate, user }) {
-  const { id } = useParams();
+export default function TutorDetails({ navigate, user, tutorId, isAdmin }) {
+  const id = tutorId;
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showBooking, setShowBooking] = useState(false);
@@ -20,7 +19,7 @@ export default function TutorDetails({ navigate, user }) {
       .catch(() => {
         setTutor({
           _id: id, name: 'Sarah Mitchell', subject: 'Mathematics', rating: 4.9, price: 50,
-          photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
+          photoURL: '/images/pexels-photo-5303546.jpg',
           bio: 'PhD in Mathematics with 10+ years of teaching experience.',
           totalStudents: 250, education: 'PhD in Mathematics, MIT', experience: '10 years',
           languages: ['English', 'French'], availability: ['Monday', 'Wednesday', 'Friday'],
@@ -30,15 +29,37 @@ export default function TutorDetails({ navigate, user }) {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const handleDeleteTutor = async () => {
+    if (!window.confirm('Are you sure you want to delete this tutor profile? This action cannot be undone.')) return;
+    try {
+      await api.delete(`/tutors/${id}`);
+      navigate('find-tutors');
+    } catch (err) {
+      console.error('Failed to delete tutor', err);
+    }
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
   if (!tutor) return <div className="min-h-screen flex items-center justify-center"><p>Tutor not found</p></div>;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4">
-        <Button variant="ghost" className="mb-6" onClick={() => navigate('find-tutors')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Tutors
-        </Button>
+      <div className="max-w-6xl mx-auto px-4 lg:px-8">
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="ghost" onClick={() => navigate('find-tutors')}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Tutors
+          </Button>
+          {user && isAdmin && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate('add-tutor', { editTutor: tutor })}>
+                <Pencil className="h-4 w-4 mr-1" /> Edit
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleDeleteTutor}>
+                <Trash2 className="h-4 w-4 mr-1" /> Delete
+              </Button>
+            </div>
+          )}
+        </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">

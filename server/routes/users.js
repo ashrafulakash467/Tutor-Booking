@@ -30,12 +30,12 @@ router.post('/signup', asyncHandler(async (req, res) => {
   };
   
   const result = await usersCollection.insertOne(newUser);
-  const token = generateToken({ email: normalizedEmail, name, photoURL: photoURL || '' });
+  const token = generateToken({ email: normalizedEmail, name, photoURL: photoURL || '', role: 'user' });
   
   res.status(201).json({
     message: 'User created successfully',
     token,
-    user: { email: normalizedEmail, name, photoURL: photoURL || '' }
+    user: { email: normalizedEmail, name, photoURL: photoURL || '', role: 'user' }
   });
 }));
 
@@ -59,12 +59,12 @@ router.post('/signin', asyncHandler(async (req, res) => {
     return res.status(401).json({ message: 'Invalid email or password' });
   }
   
-  const token = generateToken({ email: user.email, name: user.name, photoURL: user.photoURL || '' });
+  const token = generateToken({ email: user.email, name: user.name, photoURL: user.photoURL || '', role: user.role || 'user' });
   
   res.json({
     message: 'Login successful',
     token,
-    user: { email: user.email, name: user.name, photoURL: user.photoURL || '' }
+    user: { email: user.email, name: user.name, photoURL: user.photoURL || '', role: user.role || 'user' }
   });
 }));
 
