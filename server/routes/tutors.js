@@ -90,7 +90,6 @@ router.put('/:id', verifyToken, isAdmin, asyncHandler(async (req, res) => {
   const updatedTutor = await tutorsCollection.findOne(safeQueryId(req.params.id));
   res.json({ message: 'Tutor updated', tutor: updatedTutor });
 }));
-
 // DELETE /tutors/:id - Delete tutor (Admin only)
 router.delete('/:id', verifyToken, isAdmin, asyncHandler(async (req, res) => {
   const tutorsCollection = req.tutorsCollection;
