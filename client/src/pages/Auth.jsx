@@ -33,11 +33,25 @@ export default function Auth({ onAuth }) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState([]);
 
-  const handleLocalAuth = (userData) => {
-    const token = generateToken();
-    localStorage.setItem('token', token);
+  const handleLocalAuth = (userData, token) => {
+    const authToken = token || generateToken();
+    localStorage.setItem('token', authToken);
     localStorage.setItem('user', JSON.stringify(userData));
     onAuth(userData);
+  };
+
+  // Try to get a real JWT from the server so admin actions (add/edit/delete) work
+  const signinDemoAccount = async (account) => {
+    try {
+      const res = await api.post('/users/signin', {
+        email: account.email,
+        password: account.password,
+      });
+      return res.data.token;
+    } catch {
+      // Server unavailable — fall back to local fake token
+      return null;
+    }
   };
 
   const handleLogin = async (e) => {
@@ -55,12 +69,14 @@ export default function Auth({ onAuth }) {
         a => a.email === loginForm.email.trim().toLowerCase() && a.password === loginForm.password
       );
       if (demo) {
+        // Get a real server token so admin CRUD actions are authorized
+        const token = await signinDemoAccount(demo);
         handleLocalAuth({ 
           email: demo.email, 
           name: demo.name, 
           photoURL: demo.photoURL,
           role: demo.role || 'user'
-        });
+        }, token || undefined);
       } else {
         setError(err.response?.data?.message || 'Invalid email or password. Try demo accounts below.');
       }
@@ -127,13 +143,15 @@ export default function Auth({ onAuth }) {
     }, 800);
   };
 
-  const handleDemoLogin = (account) => {
+  const handleDemoLogin = async (account) => {
+    // Get a real server token so admin CRUD actions are authorized
+    const token = await signinDemoAccount(account);
     handleLocalAuth({ 
       email: account.email, 
       name: account.name, 
       photoURL: account.photoURL,
       role: account.role || 'user'
-    });
+    }, token || undefined);
   };
 
   return (
