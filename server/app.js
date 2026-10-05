@@ -48,7 +48,7 @@ app.use(dbMiddleware);
 app.use('/users', require('./routes/users'));
 app.use('/tutors', require('./routes/tutors'));
 app.use('/bookings', require('./routes/bookings'));
-app.use('/', require('./routes/seed'));
+// app.use('/', require('./routes/seed'));
 
 // Basic route
 app.get('/', (req, res) => {
