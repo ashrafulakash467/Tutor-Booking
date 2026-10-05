@@ -37,6 +37,8 @@ const corsOptions = {
 
 // Middleware
 app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
 app.use(express.json({ limit: '10mb' }));
 
 // Database connection middleware (auto-connects on every request)
