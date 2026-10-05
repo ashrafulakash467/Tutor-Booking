@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,6 @@ import api from '@/api';
 
 export function BookSessionModal({ tutor, user, open, onClose }) {
   const [form, setForm] = useState({
-    studentName: user?.name || '',
-    studentEmail: user?.email || '',
     phone: '',
     date: '',
     timeSlot: '',
@@ -19,27 +17,20 @@ export function BookSessionModal({ tutor, user, open, onClose }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [slotError, setSlotError] = useState('');
-
-  // Check slot availability and date restrictions
-  useEffect(() => {
-    if (!tutor) return;
-    
-    // Check if total slots are available
+  const slotError = useMemo(() => {
+    if (!tutor) return '';
     if (tutor.availableSlots <= 0) {
-      setSlotError('No available slots left. This session is fully booked.');
-    } else if (tutor.sessionStartDate) {
+      return 'No available slots left. This session is fully booked.';
+    }
+    if (tutor.sessionStartDate) {
       const sessionDate = new Date(tutor.sessionStartDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (today < sessionDate) {
-        setSlotError('Booking is not available yet for this tutor. Sessions start on ' + tutor.sessionStartDate.split('T')[0]);
-      } else {
-        setSlotError('');
+        return 'Booking is not available yet for this tutor. Sessions start on ' + tutor.sessionStartDate.split('T')[0];
       }
-    } else {
-      setSlotError('');
     }
+    return '';
   }, [tutor]);
 
   const handleSubmit = async (e) => {
@@ -69,17 +60,13 @@ export function BookSessionModal({ tutor, user, open, onClose }) {
     try {
       const res = await api.post('/bookings', {
         tutorId: tutor._id,
-        studentEmail: form.studentEmail,
-        studentName: form.studentName,
         phone: form.phone,
         date: form.date,
         timeSlot: form.timeSlot || tutor.timeSlot,
-        subject: tutor.subject,
       });
       setSuccess({ 
         ...res.data.booking, 
-        token: Math.random().toString(36).substr(2, 8).toUpperCase(),
-        phone: form.phone 
+        token: res.data.booking.reference,
       });
     } catch (err) {
       setError(err.response?.data?.message || 'Booking failed. Please try again.');
@@ -163,11 +150,11 @@ export function BookSessionModal({ tutor, user, open, onClose }) {
             )}
             <div>
               <Label htmlFor="name">Student Name</Label>
-              <Input id="name" value={form.studentName} onChange={e => setForm({...form, studentName: e.target.value})} required className="dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+              <Input id="name" value={user?.name || ''} readOnly className="dark:bg-gray-700 dark:text-white dark:border-gray-600" />
             </div>
             <div>
               <Label htmlFor="email">Student Email</Label>
-              <Input id="email" type="email" value={form.studentEmail} onChange={e => setForm({...form, studentEmail: e.target.value})} required className="dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+              <Input id="email" type="email" value={user?.email || ''} readOnly className="dark:bg-gray-700 dark:text-white dark:border-gray-600" />
             </div>
             <div>
               <Label htmlFor="phone">

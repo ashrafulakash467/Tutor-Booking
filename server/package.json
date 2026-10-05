@@ -1,26 +1,29 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Tutor-Booking Express API",
+  "private": true,
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "check:api": "node test-api.js",
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "node --watch index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-async-handler": "^1.2.0",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.5.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
   }
 }

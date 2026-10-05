@@ -1,4 +1,3 @@
-import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva } from "class-variance-authority"
 import { cn } from "@/lib/utils"
@@ -35,4 +34,6 @@ function Badge({ className, variant, asChild = false, ...props }) {
   )
 }
 
+// The variant helper is part of this component's public styling API.
+// eslint-disable-next-line react-refresh/only-export-components
 export { Badge, badgeVariants }

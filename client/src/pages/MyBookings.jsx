@@ -15,25 +15,29 @@ export default function MyBookings({ user, navigate }) {
   const [cancelModal, setCancelModal] = useState({ open: false, bookingId: null });
   const [cancelLoading, setCancelLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     if (!user) { navigate('auth'); return; }
-    api.get('/bookings', { params: { email: user.email } })
+    api.get('/bookings')
       .then(res => setBookings(res.data))
-      .catch(() => {})
+      .catch((err) => setErrorMsg(err.response?.data?.message || 'Unable to load your bookings.'))
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, navigate]);
 
   const cancelBooking = async () => {
     if (!cancelModal.bookingId) return;
     setCancelLoading(true);
+    setErrorMsg('');
     try {
       await api.patch(`/bookings/${cancelModal.bookingId}`, { status: 'cancelled' });
-      setBookings(bookings.map(b => b._id === cancelModal.bookingId ? { ...b, status: 'cancelled' } : b));
+      setBookings((current) => current.map((booking) => (
+        booking._id === cancelModal.bookingId ? { ...booking, status: 'cancelled' } : booking
+      )));
       setSuccessMsg('Booking cancelled successfully!');
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
-      console.error('Failed to cancel booking', err);
+      setErrorMsg(err.response?.data?.message || 'Unable to cancel this booking.');
     } finally {
       setCancelLoading(false);
       setCancelModal({ open: false, bookingId: null });
@@ -51,6 +55,12 @@ export default function MyBookings({ user, navigate }) {
           <Alert className="mb-4 bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 animate-fade-in">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-600 dark:text-green-400">{successMsg}</AlertDescription>
+          </Alert>
+        )}
+
+        {errorMsg && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription>{errorMsg}</AlertDescription>
           </Alert>
         )}
 

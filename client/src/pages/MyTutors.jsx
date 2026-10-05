@@ -27,7 +27,7 @@ export default function MyTutors({ user, navigate }) {
       .then(res => setTutors(res.data))
       .catch((err) => setErrorMsg(err.response?.data?.message || 'Failed to load tutors'))
       .finally(() => setLoading(false));
-  }, [user, isAdmin]);
+  }, [user, isAdmin, navigate]);
 
   const deleteTutor = async () => {
     const { tutorId } = deleteModal;

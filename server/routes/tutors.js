@@ -1,6 +1,5 @@
 const express = require('express');
 const asyncHandler = require('express-async-handler');
-const { ObjectId } = require('mongodb');
 const { safeQueryId } = require('../config/db');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 

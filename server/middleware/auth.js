@@ -1,6 +1,10 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'tutor-booking-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET is required. Set it in the server environment.');
+}
 
 function generateToken(user) {
   return jwt.sign(
@@ -25,11 +29,22 @@ function verifyToken(req, res, next) {
   }
 }
 
-function isAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Admin access required' });
+async function isAdmin(req, res, next) {
+  try {
+    const admin = await req.usersCollection.findOne(
+      { email: req.user?.email },
+      { projection: { role: 1 } }
+    );
+
+    if (!admin || admin.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    req.user.role = 'admin';
+    return next();
+  } catch (error) {
+    return next(error);
   }
-  next();
 }
 
 function optionalAuth(req, res, next) {

@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+
+if (!configuredApiUrl) {
+  throw new Error('VITE_API_URL is required. Set it in the client environment.');
+}
+
+const API_BASE_URL = configuredApiUrl.replace(/\/$/, '');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -25,6 +31,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      window.dispatchEvent(new Event('auth:logout'));
     }
     return Promise.reject(error);
   }

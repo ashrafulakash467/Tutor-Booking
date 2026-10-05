@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Menu, X, User, LogOut, GraduationCap, ChevronDown, Sun, Moon, PlusCircle, List, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -12,18 +12,38 @@ import Auth from '@/pages/Auth';
 import AddTutor from '@/pages/AddTutor';
 import MyBookings from '@/pages/MyBookings';
 import MyTutors from '@/pages/MyTutors';
+import About from '@/pages/About';
+import Contact from '@/pages/Contact';
 import NotFound from '@/pages/NotFound';
 
 function getTabFromHash() {
   const hash = window.location.hash.replace('#', '') || 'home';
-  return hash;
+  return hash.startsWith('tutor/') ? 'tutor' : hash;
+}
+
+function getTutorIdFromHash() {
+  const hash = window.location.hash.replace('#', '');
+  return hash.startsWith('tutor/') ? hash.replace('tutor/', '') : null;
+}
+
+function getStoredUser() {
+  const savedUser = localStorage.getItem('user');
+  if (!savedUser) return null;
+
+  try {
+    return JSON.parse(savedUser);
+  } catch {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    return null;
+  }
 }
 
 export default function App() {
+  const [user, setUser] = useState(getStoredUser);
   const [activeTab, setActiveTab] = useState(() => getTabFromHash());
-  const [user, setUser] = useState(null);
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [tutorId, setTutorId] = useState(null);
+  const [tutorId, setTutorId] = useState(getTutorIdFromHash);
   const [editTutor, setEditTutor] = useState(null);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -34,15 +54,17 @@ export default function App() {
   // Dynamic page title
   useEffect(() => {
     const titles = {
-      'home': 'MediQueue - Find Your Perfect Tutor',
-      'find-tutors': 'Find Tutors - MediQueue',
-      'tutor': 'Tutor Details - MediQueue',
-      'auth': 'Sign In - MediQueue',
-      'add-tutor': 'Add Tutor - MediQueue',
-      'my-bookings': 'My Bookings - MediQueue',
-      'my-tutors': 'My Tutors - MediQueue',
+      'home': 'Tutor-Booking - Find Your Perfect Tutor',
+      'find-tutors': 'Find Tutors - Tutor-Booking',
+      'about': 'About - Tutor-Booking',
+      'contact': 'Contact - Tutor-Booking',
+      'tutor': 'Tutor Details - Tutor-Booking',
+      'auth': 'Sign In - Tutor-Booking',
+      'add-tutor': 'Add Tutor - Tutor-Booking',
+      'my-bookings': 'My Bookings - Tutor-Booking',
+      'my-tutors': 'My Tutors - Tutor-Booking',
     };
-    document.title = titles[activeTab] || 'MediQueue - Tutor Booking';
+    document.title = titles[activeTab] || 'Tutor-Booking - Tutor Booking';
   }, [activeTab]);
 
   // Dark mode class management
@@ -56,19 +78,11 @@ export default function App() {
   }, [darkMode]);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try { 
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-        // If user is logged in and on auth page, redirect to home
-        const currentHash = window.location.hash.replace('#', '');
-        if (currentHash === 'auth' || !currentHash) {
-          window.location.hash = 'home';
-          setActiveTab('home');
-        }
-      } catch { /* ignore parse errors */ }
+    const currentHash = window.location.hash.replace('#', '');
+    if (user && currentHash === 'auth') {
+      window.location.hash = 'home';
     }
+
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (hash.startsWith('tutor/')) {
@@ -79,11 +93,20 @@ export default function App() {
         setTutorId(null);
       }
     };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+    const handleForcedLogout = () => {
+      setUser(null);
+      window.location.hash = 'auth';
+    };
 
-  const navigate = (tab, params) => {
+    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('auth:logout', handleForcedLogout);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('auth:logout', handleForcedLogout);
+    };
+  }, [user]);
+
+  const navigate = useCallback((tab, params) => {
     // Private route protection
     const privateRoutes = ['add-tutor', 'my-bookings', 'my-tutors'];
     if (privateRoutes.includes(tab) && !user) {
@@ -114,7 +137,7 @@ export default function App() {
     if (tab === 'tutor' && params?.id) setTutorId(params.id);
     if (tab !== 'add-tutor') setEditTutor(null);
     setMobileMenu(false);
-  };
+  }, [user]);
 
   const onCancelEdit = () => {
     setEditTutor(null);
@@ -139,6 +162,8 @@ export default function App() {
   const publicNavItems = [
     { label: 'Home', tab: 'home' },
     { label: 'Find Tutors', tab: 'find-tutors' },
+    { label: 'About', tab: 'about' },
+    { label: 'Contact', tab: 'contact' },
   ];
 
   // Logged-in nav items added dynamically
@@ -162,6 +187,10 @@ export default function App() {
         return <Home navigate={navigate} user={user} />;
       case 'find-tutors':
         return <FindTutors navigate={navigate} />;
+      case 'about':
+        return <About navigate={navigate} />;
+      case 'contact':
+        return <Contact />;
       case 'tutor':
         return <TutorDetails navigate={navigate} user={user} tutorId={tutorId} isAdmin={isAdmin} />;
       case 'auth':
@@ -186,7 +215,7 @@ export default function App() {
             {/* Logo */}
             <button onClick={() => navigate('home')} className="flex items-center gap-2 group">
               <GraduationCap className="h-8 w-8 text-blue-600 transition-transform group-hover:scale-110" />
-              <span className={`text-xl font-bold transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>Medi<span className="text-blue-600">Queue</span></span>
+              <span className={`text-xl font-bold transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>Tutor-<span className="text-blue-600">Booking</span></span>
             </button>
 
             {/* Desktop Nav */}
@@ -300,7 +329,7 @@ export default function App() {
             <div className="animate-fade-in-up" style={{animationDelay: '0.1s'}}>
               <div className="flex items-center gap-2 mb-4">
                 <GraduationCap className="h-6 w-6 text-blue-400" />
-                <span className="text-lg font-bold text-white">MediQueue</span>
+                <span className="text-lg font-bold text-white">Tutor-Booking</span>
               </div>
               <p className="text-sm">Find your perfect tutor and start learning today. Quality education tailored to your needs.</p>
             </div>
@@ -317,7 +346,7 @@ export default function App() {
             <div className="animate-fade-in-up" style={{animationDelay: '0.3s'}}>
               <h4 className="font-semibold text-white mb-3">Contact</h4>
               <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">📧 hello@mediqueue.com</li>
+                <li className="flex items-center gap-2">📧 hello@tutor-booking.com</li>
                 <li className="flex items-center gap-2">📞 +1 (555) 123-4567</li>
                 <li className="flex items-center gap-2">📍 123 Education St, NY</li>
               </ul>
@@ -344,7 +373,7 @@ export default function App() {
             </div>
           </div>
           <div className={`border-t mt-8 pt-8 text-center text-sm ${darkMode ? 'border-gray-800' : 'border-gray-800'}`}>
-            &copy; 2026 MediQueue. All rights reserved. | Empowering students through quality tutoring.
+            &copy; 2026 Tutor-Booking. All rights reserved. | Empowering students through quality tutoring.
           </div>
         </div>
       </footer>

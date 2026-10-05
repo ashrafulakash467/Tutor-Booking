@@ -11,20 +11,18 @@ export default function TutorDetails({ navigate, user, tutorId, isAdmin }) {
   const id = tutorId;
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showBooking, setShowBooking] = useState(false);
 
   useEffect(() => {
     api.get(`/tutors/${id}`)
-      .then(res => setTutor(res.data))
-      .catch(() => {
-        setTutor({
-          _id: id, name: 'Sarah Mitchell', subject: 'Mathematics', rating: 4.9, price: 50,
-          photoURL: '/images/pexels-photo-5303546.jpg',
-          bio: 'PhD in Mathematics with 10+ years of teaching experience.',
-          totalStudents: 250, education: 'PhD in Mathematics, MIT', experience: '10 years',
-          languages: ['English', 'French'], availability: ['Monday', 'Wednesday', 'Friday'],
-          availableSlots: 7, totalSlots: 10
-        });
+      .then(res => {
+        setTutor(res.data);
+        setError('');
+      })
+      .catch((err) => {
+        setTutor(null);
+        setError(err.response?.data?.message || 'Unable to load this tutor. Please check the server connection and try again.');
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -40,6 +38,16 @@ export default function TutorDetails({ navigate, user, tutorId, isAdmin }) {
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col gap-4 items-center justify-center px-4 text-center">
+        <p className="text-red-600">{error}</p>
+        <Button variant="outline" onClick={() => navigate('find-tutors')}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Tutors
+        </Button>
+      </div>
+    );
+  }
   if (!tutor) return <div className="min-h-screen flex items-center justify-center"><p>Tutor not found</p></div>;
 
   return (

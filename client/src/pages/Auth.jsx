@@ -12,11 +12,12 @@ const demoAccounts = [
   { name: 'admin', email: 'admin@example.com', password: 'password123', photoURL: '/images/pexels-photo-5303546.jpg', role: 'admin' },
 ];
 
-function generateToken() {
-  return 'demo_' + Math.random().toString(36).substr(2, 16) + Date.now().toString(36);
-}
+// Set this to true later to require 6+ characters with uppercase and lowercase letters.
+const ENABLE_STRONG_PASSWORD_VALIDATION = false;
 
 function validatePassword(password) {
+  if (!ENABLE_STRONG_PASSWORD_VALIDATION) return [];
+
   const errors = [];
   if (password.length < 6) errors.push('Must be at least 6 characters');
   if (!/[A-Z]/.test(password)) errors.push('Must have an uppercase letter');
@@ -30,28 +31,12 @@ export default function Auth({ onAuth }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState([]);
 
-  const handleLocalAuth = (userData, token) => {
-    const authToken = token || generateToken();
-    localStorage.setItem('token', authToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-    onAuth(userData);
-  };
-
-  // Try to get a real JWT from the server so admin actions (add/edit/delete) work
-  const signinDemoAccount = async (account) => {
-    try {
-      const res = await api.post('/users/signin', {
-        email: account.email,
-        password: account.password,
-      });
-      return res.data.token;
-    } catch {
-      // Server unavailable — fall back to local fake token
-      return null;
-    }
+  const completeAuthentication = ({ token, user }) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    onAuth(user);
   };
 
   const handleLogin = async (e) => {
@@ -61,25 +46,9 @@ export default function Auth({ onAuth }) {
 
     try {
       const res = await api.post('/users/signin', loginForm);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      onAuth(res.data.user);
+      completeAuthentication(res.data);
     } catch (err) {
-      const demo = demoAccounts.find(
-        a => a.email === loginForm.email.trim().toLowerCase() && a.password === loginForm.password
-      );
-      if (demo) {
-        // Get a real server token so admin CRUD actions are authorized
-        const token = await signinDemoAccount(demo);
-        handleLocalAuth({ 
-          email: demo.email, 
-          name: demo.name, 
-          photoURL: demo.photoURL,
-          role: demo.role || 'user'
-        }, token || undefined);
-      } else {
-        setError(err.response?.data?.message || 'Invalid email or password. Try demo accounts below.');
-      }
+      setError(err.response?.data?.message || 'Unable to sign in. Please check the server connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -91,7 +60,7 @@ export default function Auth({ onAuth }) {
     setError('');
     setPasswordErrors([]);
 
-    const { name, email, password, photoURL } = signupForm;
+    const { password } = signupForm;
     
     // Validate password
     const pwdErrors = validatePassword(password);
@@ -102,25 +71,13 @@ export default function Auth({ onAuth }) {
     }
 
     try {
-      await api.post('/users/signup', signupForm);
-      // After successful registration, navigate to login page
-      setError('');
-      setSignupForm({ name: '', email: '', password: '', photoURL: '' });
-      // Show success message and switch to login tab
-      const loginTab = document.querySelector('[data-value="login"]');
-      if (loginTab) loginTab.click();
-      setError('Account created successfully! Please sign in.');
+      const res = await api.post('/users/signup', signupForm);
+      completeAuthentication(res.data);
     } catch (err) {
       if (err.response?.status === 409) {
         setError('User already exists with this email');
       } else {
-        // Fallback: local signup
-        handleLocalAuth({ 
-          email: email.trim().toLowerCase(), 
-          name, 
-          photoURL: photoURL || '',
-          role: 'user'
-        });
+        setError(err.response?.data?.message || 'Unable to create the account. Please check the server connection and try again.');
       }
     } finally {
       setLoading(false);
@@ -128,30 +85,30 @@ export default function Auth({ onAuth }) {
   };
 
   const handleGoogleLogin = () => {
-    setGoogleLoading(true);
-    setError('');
-
-    setTimeout(() => {
-      const googleUser = {
-        name: 'Google User',
-        email: 'google.user' + Math.floor(Math.random() * 1000) + '@gmail.com',
-        photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Google',
-        role: 'user',
-      };
-      handleLocalAuth(googleUser);
-      setGoogleLoading(false);
-    }, 800);
+    setError('Google sign-in is not configured yet. Please use email and password.');
   };
 
   const handleDemoLogin = async (account) => {
-    // Get a real server token so admin CRUD actions are authorized
-    const token = await signinDemoAccount(account);
-    handleLocalAuth({ 
-      email: account.email, 
-      name: account.name, 
-      photoURL: account.photoURL,
-      role: account.role || 'user'
-    }, token || undefined);
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await api.post('/users/signin', {
+        email: account.email,
+        password: account.password,
+      });
+
+      if (res.data?.user?.role !== 'admin') {
+        setError('The demo account is not configured as an admin.');
+        return;
+      }
+
+      completeAuthentication(res.data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to sign in to the demo account. Please check the server connection.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -159,7 +116,7 @@ export default function Auth({ onAuth }) {
       <div className="w-full max-w-md animate-fade-in-up">
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl dark:text-white">Welcome to MediQueue</CardTitle>
+            <CardTitle className="text-2xl dark:text-white">Welcome to Tutor-Booking</CardTitle>
             <CardDescription className="dark:text-gray-400">Sign in or create an account to continue</CardDescription>
           </CardHeader>
           <CardContent>
@@ -176,7 +133,6 @@ export default function Auth({ onAuth }) {
               variant="outline"
               className="w-full mb-4 gap-2 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
               onClick={handleGoogleLogin}
-              disabled={googleLoading}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -184,7 +140,7 @@ export default function Auth({ onAuth }) {
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              {googleLoading ? 'Signing in...' : 'Sign in with Google'}
+              Sign in with Google
             </Button>
 
             <div className="relative mb-4">
@@ -245,7 +201,7 @@ export default function Auth({ onAuth }) {
                     <label className="text-sm font-medium mb-1 block dark:text-gray-200">Password</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input className="pl-10 pr-10 dark:bg-gray-700 dark:text-white dark:border-gray-600" type={showPassword ? 'text' : 'password'} placeholder="Min 6 characters" value={signupForm.password} onChange={e => {
+                      <Input className="pl-10 pr-10 dark:bg-gray-700 dark:text-white dark:border-gray-600" type={showPassword ? 'text' : 'password'} placeholder={ENABLE_STRONG_PASSWORD_VALIDATION ? 'Min 6 characters' : 'Enter a password'} value={signupForm.password} onChange={e => {
                         setSignupForm({...signupForm, password: e.target.value});
                         setPasswordErrors(validatePassword(e.target.value));
                       }} required />
@@ -254,7 +210,7 @@ export default function Auth({ onAuth }) {
                       </button>
                     </div>
                     {/* Password Validation */}
-                    {signupForm.password.length > 0 && (
+                    {ENABLE_STRONG_PASSWORD_VALIDATION && signupForm.password.length > 0 && (
                       <div className="mt-2 space-y-1">
                         <div className="flex items-center gap-2 text-xs">
                           {signupForm.password.length >= 6 ? (
@@ -318,9 +274,11 @@ export default function Auth({ onAuth }) {
               <div className="space-y-2">
                 {demoAccounts.map((account) => (
                   <button
+                    type="button"
                     key={account.email}
                     onClick={() => handleDemoLogin(account)}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+                    disabled={loading}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <img src={account.photoURL} alt="" className="w-10 h-10 rounded-full object-cover bg-gray-200" />
                     <div className="flex-1 min-w-0">

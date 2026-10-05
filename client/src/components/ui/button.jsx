@@ -1,4 +1,3 @@
-import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva } from "class-variance-authority"
 import { cn } from "@/lib/utils"
@@ -52,4 +51,6 @@ function Button({
   )
 }
 
+// The variant helper is intentionally exported for related UI components.
+// eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants }

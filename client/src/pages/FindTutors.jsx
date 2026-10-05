@@ -5,18 +5,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import api from '@/api';
 
-const fallbackTutors = [
-  { _id: '1', name: 'Sarah Mitchell', subject: 'Mathematics', rating: 4.9, price: 50, photoURL: '/images/pexels-photo-5303546.jpg', bio: 'PhD in Mathematics with 10+ years of experience', totalStudents: 250, education: 'PhD, MIT', languages: ['English', 'French'], teachingMode: 'Online', location: 'New York' },
-  { _id: '2', name: 'James Chen', subject: 'Physics', rating: 4.8, price: 55, photoURL: '/images/pexels-photo-5905621.jpg', bio: 'Physics researcher turned educator', totalStudents: 180, education: 'MS, Stanford', languages: ['English', 'Mandarin'], teachingMode: 'Both', location: 'San Francisco' },
-  { _id: '3', name: 'Aisha Rahman', subject: 'English Literature', rating: 4.7, price: 45, photoURL: '/images/pexels-photo-7692514.jpg', bio: 'Published author and literature professor', totalStudents: 320, education: 'MA, Oxford', languages: ['English', 'Urdu'], teachingMode: 'Online', location: 'London' },
-  { _id: '4', name: 'Carlos Rivera', subject: 'Spanish', rating: 4.9, price: 40, photoURL: '/images/pexels-photo-8192096.jpg', bio: 'Native Spanish speaker', totalStudents: 410, education: 'BA, Barcelona', languages: ['Spanish', 'English'], teachingMode: 'Offline', location: 'Barcelona' },
-  { _id: '5', name: 'Jhankar Mahbub', subject: 'Programming', rating: 4.9, price: 60, photoURL: '/images/pexels-photo-6503157.jpg', bio: 'Senior software engineer & bestselling author', totalStudents: 5000, education: 'MS, Dhaka', languages: ['English', 'Bengali'], teachingMode: 'Online', location: 'Dhaka' },
-  { _id: '6', name: 'Priya Sharma', subject: 'Chemistry', rating: 4.8, price: 48, photoURL: '/images/pexels-photo-8617761.jpg', bio: 'Chemistry PhD with innovative teaching', totalStudents: 195, education: 'PhD, IIT Delhi', languages: ['English', 'Hindi'], teachingMode: 'Both', location: 'Delhi' },
-];
-
 export default function FindTutors({ navigate }) {
   const [tutors, setTutors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [subject, setSubject] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -29,8 +21,14 @@ export default function FindTutors({ navigate }) {
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
     api.get('/tutors', { params })
-      .then(res => setTutors(res.data))
-      .catch(() => setTutors(fallbackTutors))
+      .then(res => {
+        setTutors(res.data);
+        setError('');
+      })
+      .catch(() => {
+        setTutors([]);
+        setError('Unable to load tutors. Please check the server connection and try again.');
+      })
       .finally(() => setLoading(false));
   }, [search, subject, startDate, endDate]);
 
@@ -122,7 +120,7 @@ export default function FindTutors({ navigate }) {
         </section>
 
         {/* Results count */}
-        {!loading && (
+        {!loading && !error && (
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             {tutors.length} tutor{tutors.length !== 1 ? 's' : ''} found
           </p>
@@ -148,6 +146,10 @@ export default function FindTutors({ navigate }) {
                 </div>
               </div>
             ))
+          ) : error ? (
+            <div className="col-span-full text-center py-12">
+              <p className="text-red-600 dark:text-red-400">{error}</p>
+            </div>
           ) : tutors.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <Search className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />

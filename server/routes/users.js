@@ -1,8 +1,10 @@
 const express = require('express');
 const asyncHandler = require('express-async-handler');
-const { generateToken } = require('../middleware/auth');
+const bcrypt = require('bcryptjs');
+const { generateToken, verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
+const PASSWORD_HASH_ROUNDS = 10;
 
 // POST /users/signup - Register
 router.post('/signup', asyncHandler(async (req, res) => {
@@ -20,10 +22,11 @@ router.post('/signup', asyncHandler(async (req, res) => {
     return res.status(409).json({ message: 'User already exists with this email' });
   }
   
+  const passwordHash = await bcrypt.hash(password, PASSWORD_HASH_ROUNDS);
   const newUser = {
     name,
     email: normalizedEmail,
-    password, // Note: In production, hash with bcrypt
+    password: passwordHash,
     photoURL: photoURL || '',
     createdAt: new Date(),
     role: 'user',
@@ -54,9 +57,22 @@ router.post('/signin', asyncHandler(async (req, res) => {
     return res.status(401).json({ message: 'Invalid email or password' });
   }
   
-  // Direct password comparison (use bcrypt in production)
-  if (user.password !== password) {
+  const hasBcryptPassword = typeof user.password === 'string' && /^\$2[aby]\$/.test(user.password);
+  const passwordMatches = hasBcryptPassword
+    ? await bcrypt.compare(password, user.password)
+    : user.password === password;
+
+  if (!passwordMatches) {
     return res.status(401).json({ message: 'Invalid email or password' });
+  }
+
+  // Transparently migrate legacy plaintext passwords after a valid login.
+  if (!hasBcryptPassword) {
+    const passwordHash = await bcrypt.hash(password, PASSWORD_HASH_ROUNDS);
+    await usersCollection.updateOne(
+      { _id: user._id },
+      { $set: { password: passwordHash, updatedAt: new Date() } }
+    );
   }
   
   const token = generateToken({ email: user.email, name: user.name, photoURL: user.photoURL || '', role: user.role || 'user' });
@@ -69,33 +85,21 @@ router.post('/signin', asyncHandler(async (req, res) => {
 }));
 
 // GET /users/profile - Get user profile (protected)
-router.get('/profile', asyncHandler(async (req, res) => {
-  const { verifyToken } = require('../middleware/auth');
-  // Verify token manually for this route
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'No token provided' });
+router.get('/profile', verifyToken, asyncHandler(async (req, res) => {
+  const usersCollection = req.usersCollection;
+  const user = await usersCollection.findOne({ email: req.user.email });
+
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
   }
-  const token = authHeader.split(' ')[1];
-  const jwt = require('jsonwebtoken');
-  const JWT_SECRET = process.env.JWT_SECRET || 'tutor-booking-secret-key';
-  
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const usersCollection = req.usersCollection;
-    const user = await usersCollection.findOne({ email: decoded.email });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.json({
-      name: user.name,
-      email: user.email,
-      photoURL: user.photoURL || '',
-      createdAt: user.createdAt,
-    });
-  } catch (error) {
-    return res.status(401).json({ message: 'Invalid token' });
-  }
+
+  res.json({
+    name: user.name,
+    email: user.email,
+    photoURL: user.photoURL || '',
+    role: user.role || 'user',
+    createdAt: user.createdAt,
+  });
 }));
 
 module.exports = router;
